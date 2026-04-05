@@ -1,13 +1,18 @@
 from fastapi import FastAPI, Depends, HTTPException
+from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from .schemas import MensajeRequest, MensajeResponse, ReservaOut, DisponibilidadRequest
-from .db.models import init_db, get_db
+from .db.models import init_db, get_db, Cancha
 from .db.crud import (
     crear_reserva, get_todas_las_reservas,
-    get_canchas_disponibles, cancelar_reserva
+    get_canchas_disponibles, cancelar_reserva,
+    buscar_reserva, verificar_admin, crear_reserva_manual,
+    bloquear_horario, get_horarios_bloqueados, desbloquear_horario,
+    get_reservas_por_fecha
 )
+
 from .bot.agent import chat_con_bot, verificar_ollama
 
 app = FastAPI(title="Padel Bot API")
@@ -43,15 +48,24 @@ async def chat(req: MensajeRequest, db: Session = Depends(get_db)):
     hoy = datetime.now().strftime("%Y-%m-%d")
     manana = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
 
-    # Inyectar contexto de disponibilidad si el mensaje menciona una fecha/hora
-    mensaje_lower = req.mensaje.lower()
     contexto_disponibilidad = ""
+    # Inyectar contexto de disponibilidad si el mensaje menciona una fecha/hora
+    palabras_fecha = ["hoy", "mañana", "manana", "lunes", "martes", "miércoles", 
+                    "miercoles", "jueves", "viernes", "sábado", "sabado", "domingo"]
+    palabras_hora = ["hs", "pm", "am", ":00", "turno", "reserva", "cancha", "disponib"]
+
+    mensaje_lower = req.mensaje.lower()
+    tiene_fecha = any(p in mensaje_lower for p in palabras_fecha)
+    tiene_hora_o_intencion = any(p in mensaje_lower for p in palabras_hora)
 
     fechas_a_chequear = []
-    if "hoy" in mensaje_lower:
-        fechas_a_chequear.append(hoy)
-    if "mañana" in mensaje_lower or "manana" in mensaje_lower:
-        fechas_a_chequear.append(manana)
+    if tiene_fecha or tiene_hora_o_intencion:
+        if "hoy" in mensaje_lower:
+            fechas_a_chequear.append(hoy)
+        if "mañana" in mensaje_lower or "manana" in mensaje_lower:
+            fechas_a_chequear.append(manana)
+        if not fechas_a_chequear and (tiene_fecha or tiene_hora_o_intencion):
+            fechas_a_chequear.append(manana)
 
     horas_comunes = ["08:00","09:00","10:00","11:00","12:00","13:00","14:00",
                      "15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"]
@@ -74,9 +88,11 @@ async def chat(req: MensajeRequest, db: Session = Depends(get_db)):
     if contexto_disponibilidad:
         historial[-1]["content"] += contexto_disponibilidad
 
-    respuesta, datos_reserva = await chat_con_bot(historial)
+    respuesta, datos_reserva, datos_cancelacion = await chat_con_bot(historial)
   
     reserva_creada = False
+    cancelacion_exitosa = False
+
     if datos_reserva:
         canchas_libres = get_canchas_disponibles(
             db,
@@ -98,6 +114,21 @@ async def chat(req: MensajeRequest, db: Session = Depends(get_db)):
                 dni=datos_reserva.get("dni", "")
             )
             reserva_creada = True
+
+    elif datos_cancelacion:
+        reserva = buscar_reserva(
+            db,
+            nombre=datos_cancelacion["nombre"],
+            fecha=datos_cancelacion["fecha"],
+            hora=datos_cancelacion["hora"],
+            dni=datos_cancelacion["dni"]
+        )
+        if reserva:
+            cancelar_reserva(db, reserva.id)
+            respuesta = f"Tu turno del {reserva.fecha} a las {reserva.hora} fue cancelado correctamente."
+            cancelacion_exitosa = True
+        else:
+            respuesta = "No encontré ningún turno con esos datos. Verificá el nombre, DNI, fecha y hora."
 
     return MensajeResponse(
         respuesta=respuesta,
@@ -126,3 +157,91 @@ async def eliminar_reserva(reserva_id: int, db: Session = Depends(get_db)):
     if not ok:
         raise HTTPException(status_code=404, detail="Reserva no encontrada")
     return {"ok": True}
+
+class LoginRequest(BaseModel):
+    usuario: str
+    password: str
+
+class ReservaManualRequest(BaseModel):
+    nombre: str
+    telefono: str
+    fecha: str
+    hora: str
+    cancha: int
+    duracion: int = 90
+    dni: str = ""
+
+class BloqueoRequest(BaseModel):
+    fecha: str
+    hora: str
+    cancha: int
+    motivo: str = ""
+
+
+@app.post("/admin/login")
+async def admin_login(req: LoginRequest, db: Session = Depends(get_db)):
+    if not verificar_admin(db, req.usuario, req.password):
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+    return {"ok": True, "mensaje": "Login exitoso"}
+
+
+@app.get("/admin/reservas")
+async def admin_get_reservas(fecha: str = None, db: Session = Depends(get_db)):
+    if fecha:
+        return get_reservas_por_fecha(db, fecha)
+    return get_todas_las_reservas(db)
+
+
+@app.post("/admin/reservas")
+async def admin_crear_reserva(req: ReservaManualRequest, db: Session = Depends(get_db)):
+    canchas_libres = get_canchas_disponibles(db, req.fecha, req.hora, req.duracion)
+    cancha_id = req.cancha if req.cancha else (canchas_libres[0].id if canchas_libres else None)
+    if not cancha_id:
+        raise HTTPException(status_code=400, detail="No hay canchas disponibles")
+    return crear_reserva_manual(
+        db, req.nombre, req.telefono, req.fecha,
+        req.hora, cancha_id, req.duracion, req.dni
+    )
+
+
+@app.delete("/admin/reservas/{reserva_id}")
+async def admin_cancelar_reserva(reserva_id: int, db: Session = Depends(get_db)):
+    ok = cancelar_reserva(db, reserva_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Reserva no encontrada")
+    return {"ok": True}
+
+
+@app.post("/admin/bloqueos")
+async def admin_bloquear(req: BloqueoRequest, db: Session = Depends(get_db)):
+    return bloquear_horario(db, req.fecha, req.hora, req.cancha, req.motivo)
+
+
+@app.get("/admin/bloqueos")
+async def admin_get_bloqueos(fecha: str = None, db: Session = Depends(get_db)):
+    return get_horarios_bloqueados(db, fecha)
+
+
+@app.delete("/admin/bloqueos/{bloqueo_id}")
+async def admin_desbloquear(bloqueo_id: int, db: Session = Depends(get_db)):
+    ok = desbloquear_horario(db, bloqueo_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Bloqueo no encontrado")
+    return {"ok": True}
+
+
+@app.get("/admin/ocupacion")
+async def admin_ocupacion(fecha: str, db: Session = Depends(get_db)):
+    canchas = db.query(Cancha).filter(Cancha.activa == True).all()
+    horas = ["08:00","09:00","10:00","11:00","12:00","13:00",
+             "14:00","15:00","16:00","17:00","18:00","19:00",
+             "20:00","21:00","22:00"]
+    resultado = []
+    for hora in horas:
+        fila = {"hora": hora}
+        for cancha in canchas:
+            libres = get_canchas_disponibles(db, fecha, hora)
+            ids_libres = [c.id for c in libres]
+            fila[f"cancha_{cancha.id}"] = "libre" if cancha.id in ids_libres else "ocupada"
+        resultado.append(fila)
+    return resultado

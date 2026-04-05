@@ -1,0 +1,6 @@
+venv/
+.env
+padel.db
+__pycache__/
+*.pyc
+.DS_Store

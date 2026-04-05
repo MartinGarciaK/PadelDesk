@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from .models import Reserva, Cancha
+from .models import Reserva, Cancha, Admin, HorarioBloqueado
 from datetime import datetime
 
 
@@ -71,6 +71,60 @@ def cancelar_reserva(db: Session, reserva_id: int):
     reserva = db.query(Reserva).filter(Reserva.id == reserva_id).first()
     if reserva:
         db.delete(reserva)
+        db.commit()
+        return True
+    return False
+
+def verificar_admin(db: Session, usuario: str, password: str):
+    import hashlib
+    admin = db.query(Admin).filter(Admin.usuario == usuario).first()
+    if not admin:
+        return False
+    password_hash = hashlib.sha256(password.encode()).hexdigest()
+    return admin.password_hash == password_hash
+
+
+def get_reservas_por_fecha(db: Session, fecha: str):
+    return db.query(Reserva).filter(Reserva.fecha == fecha).order_by(Reserva.hora).all()
+
+
+def crear_reserva_manual(db: Session, nombre: str, telefono: str, fecha: str,
+                          hora: str, cancha: int, duracion: int = 90, dni: str = ""):
+    reserva = Reserva(
+        nombre=nombre,
+        telefono=telefono,
+        fecha=fecha,
+        hora=hora,
+        cancha=cancha,
+        duracion=duracion,
+        dni=dni,
+        confirmada=True
+    )
+    db.add(reserva)
+    db.commit()
+    db.refresh(reserva)
+    return reserva
+
+
+def bloquear_horario(db: Session, fecha: str, hora: str, cancha: int, motivo: str = ""):
+    bloqueo = HorarioBloqueado(fecha=fecha, hora=hora, cancha=cancha, motivo=motivo)
+    db.add(bloqueo)
+    db.commit()
+    db.refresh(bloqueo)
+    return bloqueo
+
+
+def get_horarios_bloqueados(db: Session, fecha: str = None):
+    q = db.query(HorarioBloqueado)
+    if fecha:
+        q = q.filter(HorarioBloqueado.fecha == fecha)
+    return q.all()
+
+
+def desbloquear_horario(db: Session, bloqueo_id: int):
+    bloqueo = db.query(HorarioBloqueado).filter(HorarioBloqueado.id == bloqueo_id).first()
+    if bloqueo:
+        db.delete(bloqueo)
         db.commit()
         return True
     return False

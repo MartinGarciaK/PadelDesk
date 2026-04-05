@@ -3,6 +3,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 
+from backend import db
+
 DATABASE_URL = "sqlite:///./padel.db"
 
 engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
@@ -32,14 +34,40 @@ class Cancha(Base):
     nombre = Column(String, nullable=False)       # "Cancha 1"
     activa = Column(Boolean, default=True)
 
+class Admin(Base):
+    __tablename__ = "admins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario = Column(String, unique=True, nullable=False)
+    password_hash = Column(String, nullable=False)
+
+
+class HorarioBloqueado(Base):
+    __tablename__ = "horarios_bloqueados"
+
+    id = Column(Integer, primary_key=True, index=True)
+    fecha = Column(String, nullable=False)
+    hora = Column(String, nullable=False)
+    cancha = Column(Integer, nullable=False)
+    motivo = Column(String, default="")    
+
 
 def init_db():
     Base.metadata.create_all(bind=engine)
     db = SessionLocal()
+
     if db.query(Cancha).count() == 0:
         canchas = [Cancha(id=i, nombre=f"Cancha {i}") for i in range(1, 5)]
         db.add_all(canchas)
         db.commit()
+
+    if db.query(Admin).count() == 0:
+        import hashlib
+        password_hash = hashlib.sha256("admin123".encode()).hexdigest()
+        admin = Admin(usuario="admin", password_hash=password_hash)
+        db.add(admin)
+        db.commit()
+
     db.close()
 
 

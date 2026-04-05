@@ -23,7 +23,7 @@ class ReservaOut(BaseModel):
     cancha: int
     duracion: int
     confirmada: bool
-    sni: str
+    dni: str
 
     class Config:
         from_attributes = True

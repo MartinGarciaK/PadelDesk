@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Panel Admin — Lasaigues Padel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+
+    .login-screen {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .login-card {
+      background: white;
+      padding: 40px;
+      border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+      width: 340px;
+    }
+
+    .login-card h1 {
+      font-size: 22px;
+      margin-bottom: 8px;
+      color: #1a1a2e;
+    }
+
+    .login-card p {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 24px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+
+    .field label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #444;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border 0.2s;
+    }
+
+    .field input:focus { border-color: #00a884; }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #00a884;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .btn:hover { background: #008f71; }
+    .btn.danger { background: #e74c3c; }
+    .btn.danger:hover { background: #c0392b; }
+    .btn.secondary { background: #6c757d; }
+    .btn.secondary:hover { background: #545b62; }
+    .btn.small { width: auto; padding: 6px 14px; font-size: 13px; }
+
+    .error-msg {
+      color: #e74c3c;
+      font-size: 13px;
+      margin-top: 8px;
+      text-align: center;
+    }
+
+    .admin-screen { display: none; }
+
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0;
+      width: 220px;
+      height: 100vh;
+      background: #1a1a2e;
+      padding: 24px 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-logo {
+      padding: 0 20px 24px;
+      border-bottom: 1px solid #2d2d4e;
+    }
+
+    .sidebar-logo h2 { color: #00a884; font-size: 16px; }
+    .sidebar-logo p { color: #888; font-size: 12px; margin-top: 2px; }
+
+    .sidebar-nav { padding: 16px 0; flex: 1; }
+
+    .nav-item {
+      padding: 12px 20px;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover { color: white; background: #2d2d4e; }
+    .nav-item.active { color: #00a884; border-left-color: #00a884; background: #2d2d4e; }
+
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid #2d2d4e;
+    }
+
+    .logout-btn {
+      color: #e74c3c;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .main-content {
+      margin-left: 220px;
+      padding: 32px;
+      min-height: 100vh;
+    }
+
+    .page { display: none; }
+    .page.active { display: block; }
+
+    .page-header {
+      margin-bottom: 24px;
+    }
+
+    .page-header h1 { font-size: 24px; font-weight: 600; }
+    .page-header p { color: #666; font-size: 14px; margin-top: 4px; }
+
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      margin-bottom: 24px;
+    }
+
+    .card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #1a1a2e;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #f8f9fa;
+      color: #666;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+      color: #333;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .badge.libre { background: #d4edda; color: #155724; }
+    .badge.ocupada { background: #f8d7da; color: #721c24; }
+    .badge.bloqueada { background: #fff3cd; color: #856404; }
+
+    .date-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .date-nav input[type="date"] {
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .form-field label {
+      display: block;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .form-field input, .form-field select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .form-field input:focus, .form-field select:focus {
+      border-color: #00a884;
+    }
+
+    .ocupacion-grid {
+      overflow-x: auto;
+    }
+
+    .ocupacion-grid table th:first-child,
+    .ocupacion-grid table td:first-child {
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 1;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .stat-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+
+    .stat-card .number {
+      font-size: 32px;
+      font-weight: 700;
+      color: #00a884;
+    }
+
+    .stat-card .label {
+      font-size: 13px;
+      color: #666;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h1>Lasaigues Padel</h1>
+    <p>Panel de administración</p>
+    <div class="field">
+      <label>Usuario</label>
+      <input type="text" id="loginUsuario" placeholder="admin" value="admin"/>
+    </div>
+    <div class="field">
+      <label>Contraseña</label>
+      <input type="password" id="loginPassword" placeholder="••••••••"/>
+    </div>
+    <button class="btn" onclick="login()">Ingresar</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+</div>
+
+<!-- PANEL -->
+<div class="admin-screen" id="adminScreen">
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>Lasaigues Padel</h2>
+      <p>Panel de administración</p>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item active" onclick="showPage('dashboard')">Inicio</div>
+      <div class="nav-item" onclick="showPage('reservas')">Reservas</div>
+      <div class="nav-item" onclick="showPage('nueva')">Nueva reserva</div>
+      <div class="nav-item" onclick="showPage('bloqueos')">Bloqueos</div>
+      <div class="nav-item" onclick="showPage('ocupacion')">Ocupación</div>
+    </div>
+    <div class="sidebar-footer">
+      <div class="logout-btn" onclick="logout()">Cerrar sesión</div>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <h1>Inicio</h1>
+        <p id="dashFecha"></p>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="number" id="statTotal">-</div>
+          <div class="label">Reservas hoy</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="statLibres">-</div>
+          <div class="label">Canchas libres ahora</div>
+        </div>
+        <div class="stat-card">
+          <div class="number" id="statTotales">-</div>
+          <div class="label">Reservas totales</div>
+        </div>
+        <div class="stat-card">
+          <div class="number">4</div>
+          <div class="label">Canchas activas</div>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Reservas de hoy</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Nombre</th>
+              <th>DNI</th>
+              <th>Cancha</th>
+              <th>Duración</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="dashReservas"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- RESERVAS -->
+    <div class="page" id="page-reservas">
+      <div class="page-header">
+        <h1>Reservas</h1>
+        <p>Todas las reservas del sistema</p>
+      </div>
+      <div class="date-nav">
+        <input type="date" id="filtroFecha" onchange="cargarReservasFiltradas()"/>
+        <button class="btn small secondary" onclick="limpiarFiltro()">Ver todas</button>
+      </div>
+      <div class="card">
+        <table>
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Hora</th>
+              <th>Nombre</th>
+              <th>DNI</th>
+              <th>Teléfono</th>
+              <th>Cancha</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="tablaReservas"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NUEVA RESERVA -->
+    <div class="page" id="page-nueva">
+      <div class="page-header">
+        <h1>Nueva reserva</h1>
+        <p>Agregá una reserva manualmente</p>
+      </div>
+      <div class="card" style="max-width: 560px">
+        <h3>Datos de la reserva</h3>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Nombre</label>
+            <input type="text" id="nNombre" placeholder="Juan Pérez"/>
+          </div>
+          <div class="form-field">
+            <label>DNI</label>
+            <input type="text" id="nDni" placeholder="12345678"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Teléfono</label>
+            <input type="text" id="nTelefono" placeholder="1155556666"/>
+          </div>
+          <div class="form-field">
+            <label>Cancha</label>
+            <select id="nCancha">
+              <option value="1">Cancha 1</option>
+              <option value="2">Cancha 2</option>
+              <option value="3">Cancha 3</option>
+              <option value="4">Cancha 4</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Fecha</label>
+            <input type="date" id="nFecha"/>
+          </div>
+          <div class="form-field">
+            <label>Hora</label>
+            <input type="time" id="nHora"/>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-field">
+            <label>Duración (minutos)</label>
+            <input type="number" id="nDuracion" value="90" min="30" step="30"/>
+          </div>
+        </div>
+        <button class="btn" onclick="crearReservaManual()" style="margin-top:8px">Crear reserva</button>
+        <div id="nuevaMsg" style="margin-top:12px;font-size:13px;"></div>
+      </div>
+    </div>
+
+    <!-- BLOQUEOS -->
+    <div class="page" id="page-bloqueos">
+      <div class="page-header">
+        <h1>Bloqueos de horarios</h1>
+        <p>Bloqueá horarios para mantenimiento o eventos</p>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h3>Nuevo bloqueo</h3>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Fecha</label>
+            <input type="date" id="bFecha"/>
+          </div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Hora</label>
+            <input type="time" id="bHora"/>
+          </div>
+          <div class="form-field" style="margin-bottom:12px">
+            <label>Cancha</label>
+            <select id="bCancha">
+              <option value="1">Cancha 1</option>
+              <option value="2">Cancha 2</option>
+              <option value="3">Cancha 3</option>
+              <option value="4">Cancha 4</option>
+            </select>
+          </div>
+          <div class="form-field" style="margin-bottom:16px">
+            <label>Motivo</label>
+            <input type="text" id="bMotivo" placeholder="Mantenimiento, evento, etc."/>
+          </div>
+          <button class="btn" onclick="crearBloqueo()">Bloquear horario</button>
+          <div id="bloqueoMsg" style="margin-top:12px;font-size:13px;"></div>
+        </div>
+        <div class="card">
+          <h3>Bloqueos activos</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Hora</th>
+                <th>Cancha</th>
+                <th>Motivo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tablaBloqueos"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- OCUPACION -->
+    <div class="page" id="page-ocupacion">
+      <div class="page-header">
+        <h1>Ocupación por cancha</h1>
+        <p>Vista de disponibilidad del día</p>
+      </div>
+      <div class="date-nav">
+        <input type="date" id="ocupFecha" onchange="cargarOcupacion()"/>
+      </div>
+      <div class="card ocupacion-grid">
+        <table id="tablaOcupacion">
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>Cancha 1</th>
+              <th>Cancha 2</th>
+              <th>Cancha 3</th>
+              <th>Cancha 4</th>
+            </tr>
+          </thead>
+          <tbody id="bodyOcupacion"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API = "http://127.0.0.1:8000";
+
+  function hoy() {
+    return new Date().toISOString().split('T')[0];
+  }
+
+  async function login() {
+    const usuario = document.getElementById('loginUsuario').value;
+    const password = document.getElementById('loginPassword').value;
+    const res = await fetch(`${API}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usuario, password })
+    });
+    if (res.ok) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminScreen').style.display = 'flex';
+      cargarDashboard();
+    } else {
+      document.getElementById('loginError').textContent = 'Usuario o contraseña incorrectos';
+    }
+  }
+
+  function logout() {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('adminScreen').style.display = 'none';
+  }
+
+  function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById(`page-${name}`).classList.add('active');
+    event.target.classList.add('active');
+    if (name === 'dashboard') cargarDashboard();
+    if (name === 'reservas') cargarTodasReservas();
+    if (name === 'bloqueos') cargarBloqueos();
+    if (name === 'ocupacion') {
+      document.getElementById('ocupFecha').value = hoy();
+      cargarOcupacion();
+    }
+  }
+
+  async function cargarDashboard() {
+    const fecha = hoy();
+    document.getElementById('dashFecha').textContent = `Hoy: ${fecha}`;
+
+    const [resHoy, resTodas, resOcup] = await Promise.all([
+      fetch(`${API}/admin/reservas?fecha=${fecha}`),
+      fetch(`${API}/admin/reservas`),
+      fetch(`${API}/admin/ocupacion?fecha=${fecha}`)
+    ]);
+
+    const reservasHoy = await resHoy.json();
+    const todasReservas = await resTodas.json();
+    const ocupacion = await resOcup.json();
+
+    document.getElementById('statTotal').textContent = reservasHoy.length;
+    document.getElementById('statTotales').textContent = todasReservas.length;
+
+    const horaActual = new Date().toTimeString().slice(0,5);
+    const filaActual = ocupacion.find(f => f.hora >= horaActual);
+    if (filaActual) {
+      const libres = Object.values(filaActual).filter(v => v === 'libre').length;
+      document.getElementById('statLibres').textContent = libres;
+    }
+
+    const tbody = document.getElementById('dashReservas');
+    tbody.innerHTML = reservasHoy.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:#999;padding:20px">No hay reservas para hoy</td></tr>'
+      : reservasHoy.map(r => `
+        <tr>
+          <td>${r.hora}</td>
+          <td>${r.nombre}</td>
+          <td>${r.dni || '-'}</td>
+          <td>Cancha ${r.cancha}</td>
+          <td>${r.duracion} min</td>
+          <td><button class="btn danger small" onclick="cancelarReserva(${r.id}, this)">Cancelar</button></td>
+        </tr>`).join('');
+  }
+
+  async function cargarTodasReservas() {
+    const res = await fetch(`${API}/admin/reservas`);
+    const reservas = await res.json();
+    const tbody = document.getElementById('tablaReservas');
+    tbody.innerHTML = reservas.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">No hay reservas</td></tr>'
+      : reservas.map(r => `
+        <tr>
+          <td>${r.fecha}</td>
+          <td>${r.hora}</td>
+          <td>${r.nombre}</td>
+          <td>${r.dni || '-'}</td>
+          <td>${r.telefono}</td>
+          <td>Cancha ${r.cancha}</td>
+          <td><button class="btn danger small" onclick="cancelarReserva(${r.id}, this)">Cancelar</button></td>
+        </tr>`).join('');
+  }
+
+  async function cargarReservasFiltradas() {
+    const fecha = document.getElementById('filtroFecha').value;
+    if (!fecha) return;
+    const res = await fetch(`${API}/admin/reservas?fecha=${fecha}`);
+    const reservas = await res.json();
+    const tbody = document.getElementById('tablaReservas');
+    tbody.innerHTML = reservas.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;color:#999;padding:20px">No hay reservas para esa fecha</td></tr>'
+      : reservas.map(r => `
+        <tr>
+          <td>${r.fecha}</td>
+          <td>${r.hora}</td>
+          <td>${r.nombre}</td>
+          <td>${r.dni || '-'}</td>
+          <td>${r.telefono}</td>
+          <td>Cancha ${r.cancha}</td>
+          <td><button class="btn danger small" onclick="cancelarReserva(${r.id}, this)">Cancelar</button></td>
+        </tr>`).join('');
+  }
+
+  function limpiarFiltro() {
+    document.getElementById('filtroFecha').value = '';
+    cargarTodasReservas();
+  }
+
+  async function cancelarReserva(id, btn) {
+    if (!confirm('¿Cancelar esta reserva?')) return;
+    const res = await fetch(`${API}/admin/reservas/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      btn.closest('tr').remove();
+    }
+  }
+
+  async function crearReservaManual() {
+    const body = {
+      nombre: document.getElementById('nNombre').value,
+      dni: document.getElementById('nDni').value,
+      telefono: document.getElementById('nTelefono').value,
+      cancha: parseInt(document.getElementById('nCancha').value),
+      fecha: document.getElementById('nFecha').value,
+      hora: document.getElementById('nHora').value,
+      duracion: parseInt(document.getElementById('nDuracion').value)
+    };
+    const msg = document.getElementById('nuevaMsg');
+    if (!body.nombre || !body.fecha || !body.hora) {
+      msg.style.color = '#e74c3c';
+      msg.textContent = 'Completá nombre, fecha y hora.';
+      return;
+    }
+    const res = await fetch(`${API}/admin/reservas`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      msg.style.color = '#00a884';
+      msg.textContent = 'Reserva creada correctamente.';
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = 'Error: el horario puede estar ocupado.';
+    }
+  }
+
+  async function crearBloqueo() {
+    const body = {
+      fecha: document.getElementById('bFecha').value,
+      hora: document.getElementById('bHora').value,
+      cancha: parseInt(document.getElementById('bCancha').value),
+      motivo: document.getElementById('bMotivo').value
+    };
+    const msg = document.getElementById('bloqueoMsg');
+    if (!body.fecha || !body.hora) {
+      msg.style.color = '#e74c3c';
+      msg.textContent = 'Completá fecha y hora.';
+      return;
+    }
+    const res = await fetch(`${API}/admin/bloqueos`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    if (res.ok) {
+      msg.style.color = '#00a884';
+      msg.textContent = 'Horario bloqueado correctamente.';
+      cargarBloqueos();
+    }
+  }
+
+  async function cargarBloqueos() {
+    const res = await fetch(`${API}/admin/bloqueos`);
+    const bloqueos = await res.json();
+    const tbody = document.getElementById('tablaBloqueos');
+    tbody.innerHTML = bloqueos.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:#999;padding:20px">Sin bloqueos</td></tr>'
+      : bloqueos.map(b => `
+        <tr>
+          <td>${b.fecha}</td>
+          <td>${b.hora}</td>
+          <td>Cancha ${b.cancha}</td>
+          <td>${b.motivo || '-'}</td>
+          <td><button class="btn danger small" onclick="desbloquear(${b.id}, this)">Quitar</button></td>
+        </tr>`).join('');
+  }
+
+  async function desbloquear(id, btn) {
+    const res = await fetch(`${API}/admin/bloqueos/${id}`, { method: 'DELETE' });
+    if (res.ok) btn.closest('tr').remove();
+  }
+
+  async function cargarOcupacion() {
+    const fecha = document.getElementById('ocupFecha').value;
+    if (!fecha) return;
+    const res = await fetch(`${API}/admin/ocupacion?fecha=${fecha}`);
+    const data = await res.json();
+    const tbody = document.getElementById('bodyOcupacion');
+    tbody.innerHTML = data.map(fila => `
+      <tr>
+        <td><strong>${fila.hora}</strong></td>
+        <td><span class="badge ${fila.cancha_1}">${fila.cancha_1}</span></td>
+        <td><span class="badge ${fila.cancha_2}">${fila.cancha_2}</span></td>
+        <td><span class="badge ${fila.cancha_3}">${fila.cancha_3}</span></td>
+        <td><span class="badge ${fila.cancha_4}">${fila.cancha_4}</span></td>
+      </tr>`).join('');
+  }
+
+  document.getElementById('loginPassword').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login();
+  });
+</script>
+</body>
+</html>
