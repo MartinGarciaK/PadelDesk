@@ -23,7 +23,7 @@ Asistente conversacional para reservas de canchas de pádel, desarrollado como p
 
 1. Cloná el repositorio:
 ```bash
-git clone https://github.com/tu-usuario/padel-bot.git
+git clone git clone https://github.com/tu-usuario/padeldesk.git
 cd padel-bot
 ```
 
